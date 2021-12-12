@@ -47,9 +47,10 @@ assign label_req_mask = |req_mask;
 //Update the Pointer_Reg
 
 always @ (posedge clk) begin
-	#1
+	#1 // add delay to avoid the data entering too early, otherwise the priority_mask and priority_unmask may be changed too early that the q_test will be wrong.
 	if (rst) begin
 		q_test <= {Req_Width{1'b1}};// initialize
+		
 		//q_test <= q;
 		//Pointer_Req <= q_test;
 		//Pointer_Req_test <= q_test;
@@ -59,6 +60,7 @@ always @ (posedge clk) begin
 	else begin
 		if (label_req_mask) begin // still have req after mask
 			q_test <= priority_mask;
+			
 			//Pointer_Req <= q_test;
 			//Pointer_Req_test <= q_test;
 			label_req <= 2;
@@ -67,6 +69,7 @@ always @ (posedge clk) begin
 		else begin // no req after mask, so choose the req with no mask
 			if (|req) begin //req with no mask have req
 				q_test <= priority_unmask;
+				
 				//Pointer_Req <= q_test;// delay one clock, otherwise the result will be wrong, since the comb circuit will immediately use the pointer-reg
 				//Pointer_Req_test <= q_test;
 				label_req <= 3;
@@ -74,6 +77,7 @@ always @ (posedge clk) begin
 			end
 			else begin //req with no mask is none, so remain, don't change
 				q_test <= Pointer_Req;
+				
 				//Pointer_Req <= q_test;
 				//Pointer_Req_test <= q_test;
 				label_req <= 4;
@@ -83,7 +87,7 @@ always @ (posedge clk) begin
 	end
 	
 end
-
+//DFF
 always @ (posedge clk) begin
 	Pointer_Req <= q_test;
 	Pointer_Req_test <= q_test;

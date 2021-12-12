@@ -21,7 +21,8 @@ wire [Req_Width-1:0] grant_mask;
 wire [Req_Width-1:0] grant_unmask;
 wire label_req_mask;
 wire [2:0] label_req;
-RR_Arbiter #(Req_Width) RRA1 (
+RR_Arbiter #(.Req_Width (Req_Width)
+) RRA1 (
 .clk(clk),
 .rst(rst),
 .req(req),
@@ -59,9 +60,11 @@ initial
 		#20 req = 10'b0011000110;
 		#20 req = 10'b0010000111;//again
 		#20 req = 10'b0000000111;
-		#20 req = 10'b1000000110;
-		#20 req = 10'b1000000110;
-		#20 req = 10'b1000000011;
+		#20 req = 10'b0000000110;
+		#20 req = 10'b0000000100;
+		#20 req = 10'b0000000000;
+		#20 req = 10'b0000000011;
+		#20 req = 10'b0000000011;
 		$finish;
 	end
 
