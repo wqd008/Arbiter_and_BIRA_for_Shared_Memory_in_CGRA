@@ -14,7 +14,7 @@ module tb_synch_fifo;
     reg                         write_en = 0    ;
     reg [FIFO_WIDTH-1:0]        write_data = 0  ;
     reg                         read_en = 0     ;
-	//reg		                    nxt_gnt = 1   ;
+	reg		                    nxt_gnt = 0   ;
 
     // synch_fifo Outputs
     wire [FIFO_WIDTH-1:0]       read_data       ;
@@ -41,12 +41,12 @@ module tb_synch_fifo;
         #(PERIOD*10) rst_n  =  1;
         $display("status: %t done reset", $time);
         repeat(5) @(posedge clk);
-		//read_not_popup_and_write_repeat_fifo();
+		read_not_popup_and_write_repeat_fifo();
         //read_after_write(50);
         //repeat(5) @(posedge clk);
         //read_all_after_write_all();
         //repeat(5) @(posedge clk);
-		read_and_write_simultaneously();
+		//read_and_write_simultaneously();
 		//repeat(5) @(posedge clk);
 		//initialization();
 		//#(PERIOD*10) rst_n  =  1;
@@ -68,7 +68,7 @@ module tb_synch_fifo;
         .write_en               (write_en       ),
         .write_data             (write_data     ),
         .read_en                (read_en        ),
-		//.nxt_gnt                (nxt_gnt        ),
+		.nxt_gnt                (nxt_gnt        ),
         .read_data              (read_data      ),
         .full                   (full           ),
         .empty                  (empty          ),
@@ -80,7 +80,7 @@ module tb_synch_fifo;
 		.wr_ptr_nxt             (wr_ptr_nxt     ),
 		.rd_ptr_nxt             (rd_ptr_nxt     ),
 		.num_entries_nxt        (num_entries_nxt),
-		.req					(req			)
+		.req_pea_to_bank		(req		)
     );
     //--------------------------------------------------------------------------
     // read and write simultaneously, but not popup datas sometimes.
@@ -95,9 +95,11 @@ module tb_synch_fifo;
         end
         for (index = 1; index < 2**FIFO_PTR; index = index + 1) begin
             valW = $random;
-            read_and_popup_and_write_fifo(empty,full,valW);
+            read_not_popup_and_write_fifo(empty,full,valW);
 			valW = $random;
 			read_not_popup_and_write_fifo(empty,full,valW);
+			valW = $random;
+			read_and_popup_and_write_fifo(empty,full,valW);
             //read_and_popup_and_write_fifo(empty,full,valW);
             //if (read_data != valC) begin
 				//error = error + 1;
@@ -116,7 +118,7 @@ module tb_synch_fifo;
 	begin
 		@(posedge clk);
 		read_en     <= 1'b1;
-		//nxt_gnt     <= 1'b1;
+		nxt_gnt     <= 1'b1;
 		write_en    <= ~fifo_full;
         write_data  <= value;
 	end
@@ -131,7 +133,7 @@ module tb_synch_fifo;
 	begin
 		@(posedge clk);
 		read_en     <= 1'b1;
-		//nxt_gnt     <= 1'b0;
+		nxt_gnt     <= 1'b0;
 		write_en    <= ~fifo_full;
         write_data  <= value;
 	end

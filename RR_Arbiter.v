@@ -47,7 +47,7 @@ assign label_req_mask = |req_mask;
 //Update the Pointer_Reg
 
 always @ (posedge clk) begin
-	#1 // add delay to avoid the data entering too early, otherwise the priority_mask and priority_unmask may be changed too early that the q_test will be wrong.
+	//#1 // add delay to avoid the data entering too early, otherwise the priority_mask and priority_unmask may be changed too early that the q_test will be wrong.
 	if (rst) begin
 		q_test <= {Req_Width{1'b1}};// initialize
 		

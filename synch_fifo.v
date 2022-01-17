@@ -6,8 +6,9 @@ module synch_fifo
     // Parameter Declarations
     //----------------------------------
     parameter FIFO_PTR              = 4             , // the corresponding address of each word in fifo
-    parameter FIFO_WIDTH            = 32            , // the width of each word in fifo
-    parameter FIFO_DEPTH            = 16              // the total room a fifo could store
+    parameter FIFO_WIDTH            = 36            , // the width of each word in fifo (the upper four bits denote the target bank, the rest denotes the data)
+    parameter FIFO_DEPTH            = 16            , // the total room a fifo could store
+	parameter MEM_BANK_NUM			= 16			  // the number of the memory banks
 )
 (
     //----------------------------------
@@ -18,7 +19,7 @@ module synch_fifo
     input                           write_en        ,
     input [FIFO_WIDTH-1:0]          write_data      ,
     input                           read_en         ,
-	//input                           nxt_gnt       ,// the signal nxt_grant is high when the fifo wins the arbitration.
+	input                           nxt_gnt         ,// the signal nxt_grant is high when the fifo wins the arbitration.
     output reg [FIFO_WIDTH-1:0]     read_data       ,
     output reg                      full            ,
     output reg                      empty           ,
@@ -29,8 +30,8 @@ module synch_fifo
 	output reg [FIFO_PTR:0]         num_entries     ,
 	output reg [FIFO_PTR-1:0]       wr_ptr_nxt      ,
 	output reg [FIFO_PTR-1:0]       rd_ptr_nxt      ,
-	output reg [FIFO_PTR:0]       num_entries_nxt ,
-	output reg                      req
+	output reg [FIFO_PTR:0]         num_entries_nxt ,
+	output reg [MEM_BANK_NUM-1:0]   req_pea_to_bank 
 );
 
     //----------------------------------
@@ -54,6 +55,7 @@ module synch_fifo
     wire                            empty_nxt       ;
 
     wire [FIFO_PTR:0]               room_avail_nxt  ;
+	wire [3:0]						req_addr		;
 
     //--------------------------------------------------------------------------
     // write-pointer control logic
@@ -77,7 +79,7 @@ module synch_fifo
     begin 
         rd_ptr_nxt = rd_ptr;
         
-        if (read_en) begin
+        if (read_en && nxt_gnt) begin
             if (rd_ptr == FIFO_DEPTH_MINUS1)
                 rd_ptr_nxt = 'd0;
             else
@@ -92,11 +94,11 @@ module synch_fifo
     begin
         num_entries_nxt = num_entries;
 
-        if (write_en && read_en)                       //read and write simultaneously, the rest number is not change
+        if (write_en && read_en && nxt_gnt)                       //read and write simultaneously, the rest number is not change
             num_entries_nxt = num_entries;
         else if (write_en)                             //only write, plus 1
             num_entries_nxt = num_entries + 1'b1;
-        else if (read_en)                              //only read, substract 1
+        else if (read_en && nxt_gnt)                              //only read, substract 1
             num_entries_nxt = num_entries - 1'b1;
     end
 
@@ -104,7 +106,7 @@ module synch_fifo
     assign empty_nxt        = (num_entries_nxt == 'd0);
     assign data_avail       = num_entries;
     assign room_avail_nxt   = (FIFO_DEPTH - num_entries_nxt);
-	//assign req              =  ~empty;
+	assign req_addr         =  read_data[35:32];// getting the address of the target memory bank
 
     //--------------------------------------------------------------------------
     // register output
@@ -117,7 +119,7 @@ module synch_fifo
             num_entries <= 'd0;
             full        <= 1'b0;
             empty       <= 1'b1;
-			req			<= 1'b0;
+			req_pea_to_bank	<= {MEM_BANK_NUM{1'b0}};
             room_avail  <= FIFO_DEPTH;
         end
         else begin
@@ -126,14 +128,15 @@ module synch_fifo
             num_entries <= num_entries_nxt;
             full        <= full_nxt;
             empty       <= empty_nxt;
-			req			<= ~empty_nxt;
+			req_pea_to_bank[req_addr]	<= ~empty_nxt;		// the req corresponding to the bank is high
             room_avail  <= room_avail_nxt;
+			read_data	<= (read_en ? memory[rd_ptr_nxt] : memory[rd_ptr]);// can fasten one clock for the read process
 			if (write_en) begin
 				memory[wr_ptr] <= write_data;
         	end
-			if (read_en) begin
-				read_data   <= memory[rd_ptr];
-			end
+			//if (read_en) begin
+				//read_data   <= memory[rd_ptr];
+			//end
         end
 		// write data to memory
 //        if (write_en) begin
