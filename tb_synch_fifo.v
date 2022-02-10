@@ -5,8 +5,9 @@ module tb_synch_fifo;
     // synch_fifo Parameters   
     parameter PERIOD            = 10            ;
     parameter FIFO_PTR          = 4             ;
-    parameter FIFO_WIDTH        = 32            ;
+    parameter FIFO_WIDTH        = 36            ;
     parameter FIFO_DEPTH        = 16            ;
+	parameter MEM_BANK_NUM		= 16			;
 
     // synch_fifo Inputs
     reg                         clk = 0         ;
@@ -14,7 +15,7 @@ module tb_synch_fifo;
     reg                         write_en = 0    ;
     reg [FIFO_WIDTH-1:0]        write_data = 0  ;
     reg                         read_en = 0     ;
-	reg		                    nxt_gnt = 0   ;
+	reg	[MEM_BANK_NUM-1:0]      nxt_gnt = 0  ;
 
     // synch_fifo Outputs
     wire [FIFO_WIDTH-1:0]       read_data       ;
@@ -28,8 +29,8 @@ module tb_synch_fifo;
 	wire [FIFO_PTR-1:0]         wr_ptr_nxt      ;
 	wire [FIFO_PTR-1:0]         rd_ptr_nxt      ;
 	wire [FIFO_PTR:0]           num_entries_nxt ;
-	wire                        req             ;
-
+	wire [MEM_BANK_NUM-1:0]     req             ;
+	//wire [3:0]					req_addr		;
     initial
     begin
         forever #(PERIOD/2)  clk = ~clk;
@@ -59,7 +60,8 @@ module tb_synch_fifo;
     #(
         .FIFO_PTR               (FIFO_PTR       ),
         .FIFO_WIDTH             (FIFO_WIDTH     ),
-        .FIFO_DEPTH             (FIFO_DEPTH     )
+        .FIFO_DEPTH             (FIFO_DEPTH     ),
+		.MEM_BANK_NUM			(MEM_BANK_NUM	)
     )
     u_synch_fifo 
     (
@@ -68,7 +70,7 @@ module tb_synch_fifo;
         .write_en               (write_en       ),
         .write_data             (write_data     ),
         .read_en                (read_en        ),
-		.nxt_gnt                (nxt_gnt        ),
+		.nxt_gnt             	(nxt_gnt    	),
         .read_data              (read_data      ),
         .full                   (full           ),
         .empty                  (empty          ),
@@ -80,7 +82,8 @@ module tb_synch_fifo;
 		.wr_ptr_nxt             (wr_ptr_nxt     ),
 		.rd_ptr_nxt             (rd_ptr_nxt     ),
 		.num_entries_nxt        (num_entries_nxt),
-		.req_pea_to_bank		(req		)
+		.req_pea_to_bank		(req			)
+		//.req_addr				(req_addr		)
     );
     //--------------------------------------------------------------------------
     // read and write simultaneously, but not popup datas sometimes.
@@ -90,15 +93,15 @@ module tb_synch_fifo;
     reg [FIFO_WIDTH-1:0] 	valW		    ;
 	begin
 		for (index = 0; index < 1; index = index + 1) begin
-            valW = $random;
+            valW = {4'b0110,$random};
             write_fifo(full,valW);
         end
         for (index = 1; index < 2**FIFO_PTR; index = index + 1) begin
-            valW = $random;
+            valW = {4'b0001,$random};
             read_not_popup_and_write_fifo(empty,full,valW);
-			valW = $random;
+			valW = {4'b0101,$random};
 			read_not_popup_and_write_fifo(empty,full,valW);
-			valW = $random;
+			valW = {4'b0111,$random};
 			read_and_popup_and_write_fifo(empty,full,valW);
             //read_and_popup_and_write_fifo(empty,full,valW);
             //if (read_data != valC) begin
@@ -118,7 +121,7 @@ module tb_synch_fifo;
 	begin
 		@(posedge clk);
 		read_en     <= 1'b1;
-		nxt_gnt     <= 1'b1;
+		nxt_gnt		<= 1;
 		write_en    <= ~fifo_full;
         write_data  <= value;
 	end
@@ -133,7 +136,7 @@ module tb_synch_fifo;
 	begin
 		@(posedge clk);
 		read_en     <= 1'b1;
-		nxt_gnt     <= 1'b0;
+		nxt_gnt  	<= 0;
 		write_en    <= ~fifo_full;
         write_data  <= value;
 	end

@@ -19,8 +19,8 @@ module synch_fifo
     input                           write_en        ,
     input [FIFO_WIDTH-1:0]          write_data      ,
     input                           read_en         ,
-	input                           nxt_gnt         ,// the signal nxt_grant is high when the fifo wins the arbitration.
-    output reg [FIFO_WIDTH-1:0]     read_data       ,
+	input [MEM_BANK_NUM-1:0]        nxt_gnt      	,// the signal nxt_grant is high when the fifo wins the arbitration.
+    output reg [FIFO_WIDTH-1:0]     read_data = 0   ,
     output reg                      full            ,
     output reg                      empty           ,
     output reg [FIFO_PTR:0]         room_avail      ,
@@ -32,6 +32,7 @@ module synch_fifo
 	output reg [FIFO_PTR-1:0]       rd_ptr_nxt      ,
 	output reg [FIFO_PTR:0]         num_entries_nxt ,
 	output reg [MEM_BANK_NUM-1:0]   req_pea_to_bank 
+	//output reg [3:0]				req_addr	
 );
 
     //----------------------------------
@@ -53,10 +54,10 @@ module synch_fifo
 
     wire                            full_nxt        ;
     wire                            empty_nxt       ;
-
+	wire							nxt_gnt_final	;
     wire [FIFO_PTR:0]               room_avail_nxt  ;
 	wire [3:0]						req_addr		;
-
+	assign nxt_gnt_final = |nxt_gnt;
     //--------------------------------------------------------------------------
     // write-pointer control logic
     //--------------------------------------------------------------------------
@@ -79,12 +80,14 @@ module synch_fifo
     begin 
         rd_ptr_nxt = rd_ptr;
         
-        if (read_en && nxt_gnt) begin
+        if (read_en && nxt_gnt_final) begin
             if (rd_ptr == FIFO_DEPTH_MINUS1)
                 rd_ptr_nxt = 'd0;
             else
                 rd_ptr_nxt = rd_ptr + 1'b1;
+		//else if (!read_en)
         end
+		read_data	= (read_en ? memory[rd_ptr_nxt] : 0);
     end 
 
     //--------------------------------------------------------------------------
@@ -94,11 +97,11 @@ module synch_fifo
     begin
         num_entries_nxt = num_entries;
 
-        if (write_en && read_en && nxt_gnt)                       //read and write simultaneously, the rest number is not change
+        if (write_en && read_en && nxt_gnt_final)                       //read and write simultaneously, the rest number is not change
             num_entries_nxt = num_entries;
         else if (write_en)                             //only write, plus 1
             num_entries_nxt = num_entries + 1'b1;
-        else if (read_en && nxt_gnt)                              //only read, substract 1
+        else if (read_en && nxt_gnt_final)                              //only read, substract 1
             num_entries_nxt = num_entries - 1'b1;
     end
 
@@ -128,9 +131,10 @@ module synch_fifo
             num_entries <= num_entries_nxt;
             full        <= full_nxt;
             empty       <= empty_nxt;
-			req_pea_to_bank[req_addr]	<= ~empty_nxt;		// the req corresponding to the bank is high
+			req_pea_to_bank	<= ((read_en & ~empty)? 16'b0000000000000001 << req_addr : 0);		// the req corresponding to the bank is high
             room_avail  <= room_avail_nxt;
-			read_data	<= (read_en ? memory[rd_ptr_nxt] : memory[rd_ptr]);// can fasten one clock for the read process
+			//read_data	<= (read_en ? memory[rd_ptr_nxt] : 0);// can fasten one clock for the read process
+			//req_addr	<= (read_en ? memory[35:32] : 0);
 			if (write_en) begin
 				memory[wr_ptr] <= write_data;
         	end
@@ -172,58 +176,58 @@ module synch_fifo
 
 endmodule
 
-`timescale 1ns / 1ps
-
-module sram
-#(
-    //----------------------------------
-    // Paramter Declarations
-    //----------------------------------
-    parameter PTR 			= 4			,
-    parameter FIFO_WIDTH		= 16			,
-    parameter A_MAX 			= 2**(PTR)
-)
-(
-    //----------------------------------
-    // IO Declarations
-    //----------------------------------
-    // Write port
-    input                		wrclk			,
-    input [PTR-1:0] 			wrptr			,
-    input [FIFO_WIDTH-1:0] 		wrdata			,
-    input                		wren			,
-
-    // Read port
-    input           			rdclk   		,
-    input [PTR-1:0] 			rdptr			,
-    input                		rden			,
-    output reg [FIFO_WIDTH-1:0]         rddata			
-);
-
-    //----------------------------------
-    // Variable Declarations
-    //----------------------------------
-    // Memory as multi-dimensional array
-    reg [FIFO_WIDTH-1:0] 		memory[A_MAX-1:0];
-	
-    //----------------------------------
-    // Start of Main Code
-    //----------------------------------
-	
-    // Write data to memory
-    always @(posedge wrclk) 
-    begin
-        if (wren) begin
-	    memory[wrptr] <= wrdata;	
-	end
-    end
-
-    // Read data from memory
-    always @(posedge rdclk) 
-    begin
-	if (rden) begin
-	    rddata <= memory[rdptr];
-	end
-    end
-	
-endmodule
+//`timescale 1ns / 1ps
+//
+//module sram
+//#(
+//    //----------------------------------
+//    // Paramter Declarations
+//    //----------------------------------
+//    parameter PTR 			= 4			,
+//    parameter FIFO_WIDTH		= 16			,
+//    parameter A_MAX 			= 2**(PTR)
+//)
+//(
+//    //----------------------------------
+//    // IO Declarations
+//    //----------------------------------
+//    // Write port
+//    input                		wrclk			,
+//    input [PTR-1:0] 			wrptr			,
+//    input [FIFO_WIDTH-1:0] 		wrdata			,
+//    input                		wren			,
+//
+//    // Read port
+//    input           			rdclk   		,
+//    input [PTR-1:0] 			rdptr			,
+//    input                		rden			,
+//    output reg [FIFO_WIDTH-1:0]         rddata			
+//);
+//
+//    //----------------------------------
+//    // Variable Declarations
+//    //----------------------------------
+//    // Memory as multi-dimensional array
+//    reg [FIFO_WIDTH-1:0] 		memory[A_MAX-1:0];
+//	
+//    //----------------------------------
+//    // Start of Main Code
+//    //----------------------------------
+//	
+//    // Write data to memory
+//    always @(posedge wrclk) 
+//    begin
+//        if (wren) begin
+//	    memory[wrptr] <= wrdata;	
+//	end
+//    end
+//
+//    // Read data from memory
+//    always @(posedge rdclk) 
+//    begin
+//	if (rden) begin
+//	    rddata <= memory[rdptr];
+//	end
+//    end
+//	
+//endmodule
